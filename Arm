@@ -1,0 +1,48 @@
+import ARM
+
+arm = ARM.Arm()
+
+#vars for arm control states
+ON = 1
+OFF = 0
+UP = 1
+DOWN = 2
+CLOSE = 1
+OPEN = 2
+CLOCK = 1
+ANTI_CLOCK = 2
+
+# Vars for parts of arm
+SHOULDER = 'shoulder'
+ELBOW = 'elbow'
+WRIST = 'wrist'
+GRIP = 'grip'
+ROTATE = 'rotate'
+
+
+def zeroreset():
+    arm.zeroreset()
+    
+def read_resetdata():
+    arm.read_resetdata()
+
+def rewind():
+    arm.rewind()
+
+def turn_light(on_or_off=OFF):
+    arm.turn_light(on_or_off)
+
+def send(duration, replay=True, shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+    arm.send(duration, replay=replay, shoulder=shoulder, elbow=elbow, wrist=wrist, grip=grip, rotate=rotate, light=light)
+
+def record(duration, shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+    arm.record(duration, shoulder=shoulder, elbow=elbow, wrist=wrist, grip=grip, rotate=rotate, light=light)
+
+def store_reset_values(thedict, timedelay):
+    arm.store_reset_values(thedict, timedelay)
+
+def buildcommand(shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+    arm.buildcommand(shoulder=shoulder, elbow=elbow, wrist=wrist, grip=grip, rotate=rotate, light=light)
+
+def sendcommand(command=(0, 0, 0)):
+    arm.sendcommand(command=command)

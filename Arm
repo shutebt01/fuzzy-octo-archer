@@ -1,6 +1,6 @@
-import ARM
+import ArmBackend
 
-arm = ARM.Arm()
+arm = ArmBackend.Arm()
 
 #vars for arm control states
 ON = 1

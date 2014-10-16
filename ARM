@@ -1,0 +1,187 @@
+__author__ = 'ivonet, jediminer543'
+
+import pickle
+import time
+import sys
+
+import usb.core
+
+ON = 1
+OFF = 0
+UP = 1
+DOWN = 2
+CLOSE = 1
+OPEN = 2
+CLOCK = 1
+ANTI_CLOCK = 2
+
+SHOULDER = 'shoulder'
+ELBOW = 'elbow'
+WRIST = 'wrist'
+GRIP = 'grip'
+ROTATE = 'rotate'
+
+"""self = sys.modules[__name__]"""
+class Arm:
+
+    ON = 1
+    OFF = 0
+    UP = 1
+    DOWN = 2
+    CLOSE = 1
+    OPEN = 2
+    CLOCK = 1
+    ANTI_CLOCK = 2
+    
+    def __init__(self):
+        """Connects to the Maplin USB Robotic Arm during initialization of the class.
+        Throws a """
+        self.device = usb.core.find(idVendor=0x1267, idProduct=0x0000)
+        if self.device is None:
+            raise LookupError('Device not found')
+            # configure device
+        self.device.set_configuration()
+        self.read_resetdata()
+        self.replaydata = None
+        print(self.resetdata)
+
+    def zeroreset(self):
+        """Resets all the reset data.
+        """
+        self.resetdata = {'shoulder': 0, 'elbow': 0, 'wrist': 0, 'grip': 0, 'rotate': 0, 'light': 0}
+        resetfile = open('RobotArm.dat', 'wb')
+        pickle.dump(self.resetdata, resetfile)
+        resetfile.close()
+        self.replaydata = None
+
+    def read_resetdata(self):
+        """Populate the dictionary resetdata with the contents of the file"""
+        try:
+            resetfile = open('RobotArm.dat', 'rb')
+            self.resetdata = pickle.load(resetfile)
+            resetfile.close()
+        except IOError:
+            self.zeroreset()
+
+    def rewind(self):
+        """Returns the robot arm to the initial state"""
+        self.replaydata = self.resetdata
+        #remove zeroes because no replay needed
+        for key in list(self.replaydata.keys()):
+            if self.replaydata[key] == 0:
+                del (self.replaydata[key])
+        res = sorted(self.replaydata, key=self.replaydata.__getitem__, reverse=False)
+        saved = {}
+        for key in res:
+            if self.replaydata[key] in list(saved.keys()):
+                saved[self.replaydata[key]].append(key)
+            else:
+                saved[self.replaydata[key]] = [key, ]
+        for duration in list(saved.keys()):
+            cmd = {}
+            for value in saved[duration]:
+                if duration < 0:
+                    direction = UP
+                else:
+                    direction = DOWN
+                cmd[value] = direction
+            print(cmd)
+            self.send(abs(duration), False, **cmd)
+
+    # TODO replay functionallity
+    # def replay(self):
+    #     """Performs all issued commands again after a rewind.
+    #     pass
+
+    def turn_light(self, on_or_off=OFF):
+        self.sendcommand(self.buildcommand(light=on_or_off))
+
+    def send(self, duration, replay=True, shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+        # print 'duration =', duration
+        # print SHOULDER, shoulder
+        # print ELBOW, elbow
+        # print WRIST, wrist
+        # print GRIP, grip
+        # print ROTATE, rotate
+        # print 'replay', replay
+        if replay:
+            self.record(duration, shoulder, elbow, wrist, grip, rotate, light)
+        upCompensation = duration * 0.1
+        dictionary = {SHOULDER: shoulder, ELBOW: elbow, WRIST: wrist, GRIP: grip, ROTATE: rotate}
+        upDict = {SHOULDER: 0, ELBOW: 0, WRIST: 0, GRIP: 0, ROTATE: 0}
+        for key in list(dictionary.keys()):
+            if dictionary[key] == 0:
+                continue
+            elif dictionary[key] == UP:
+                upDict[key] = UP
+        self.sendcommand(self.buildcommand(shoulder, elbow, wrist, grip, rotate, light))
+        time.sleep(duration)
+        # print "upcompensation"
+        self.sendcommand(self.buildcommand(**upDict))
+        time.sleep(upCompensation)
+        self.sendcommand()
+        # print 'breakpoint'
+
+    def record(self, duration, shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+        dictionary = {SHOULDER: shoulder, ELBOW: elbow, WRIST: wrist, GRIP: grip, ROTATE: rotate}
+        self.store_reset_values(dictionary, duration)
+
+    def store_reset_values(self, thedict, timedelay):
+        for eachkey in [SHOULDER, ELBOW, WRIST, GRIP, ROTATE]:
+            if thedict[eachkey] == UP:
+                self.resetdata[eachkey] += timedelay
+            elif thedict[eachkey] == DOWN:
+                self.resetdata[eachkey] -= timedelay
+
+        resetfile = open('RobotArm.dat', 'wb')
+        pickle.dump(self.resetdata, resetfile)
+        resetfile.close()
+
+    def buildcommand(self, shoulder=0, elbow=0, wrist=0, grip=0, rotate=0, light=0):
+        """creates the code to send to USB robot arm
+        usage buildcommand(shoulder,elbow,wrist,grip,rotate,light)
+        where 	shoulder,elbow,wrist,are 0,1,2
+                0 = off/stop.  1=motor up.   2=motor down
+            grip is 0,1,2
+                0 = off/stop.  1=close.   2=open
+            rotate is 0,1,2
+                0 = off/stop.  1=rotate c/wise.   2=rotate c/cwise
+            light is 0,1
+                0 is off.   1 is on.
+        values default to 0 if not set.
+
+        print shoulder, elbow, wrist, grip, rotate, light
+        print int(shoulder), shoulder==1, int(shoulder)==1"""
+        # first check parameters are valid
+        if shoulder not in list(range(0, 3)):
+            raise ValueError('Shoulder out of range')
+        if elbow not in list(range(0, 3)):
+            raise ValueError('Elbow out of range')
+        if wrist not in list(range(0, 3)):
+            raise ValueError('Wrist out of range')
+        if grip not in list(range(0, 3)):
+            raise ValueError('Grip out of range')
+        if rotate not in list(range(0, 3)):
+            raise ValueError('Rotate out of range')
+        if light not in list(range(0, 3)):
+            raise ValueError('Light out of range')
+
+        # create the bytes
+        byte1 = (shoulder << 6) + (elbow << 4) + (wrist << 2) + grip
+        byte2 = rotate
+        byte3 = light
+
+        # return the bytes
+        thebytes = [byte1, byte2, byte3]
+        print(thebytes)
+        return thebytes
+
+    def sendcommand(self, command=(0, 0, 0)):
+        """writes the command to the device (as a USB Command type)
+        if no command is given three O characters are used which stops motors etc
+        returns number of bytes written"""
+        self.device.ctrl_transfer(0x40, 6, 0x100, 0, command, 1000)
+        # pass
+
+ARM = Arm()
+
